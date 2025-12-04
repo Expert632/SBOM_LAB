@@ -1,10 +1,11 @@
-FROM python:3.8-slim
+# Avant (vulnérable)
+FROM golang:1.25.4
+
+# Après (corrigé)
+FROM golang:1.25.5
 
 WORKDIR /app
-
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-
 COPY app.py .
-
 CMD ["python", "app.py"]
