@@ -1,4 +1,4 @@
-name: GRYPE - Always Green Vulnerability Scan
+name: GRYPE - Always Green Vulnerability Scan (FIXED)
 
 on:
   push:
@@ -9,29 +9,30 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+
     # 1️⃣ Récupération du code
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    # 2️⃣ Installation de Grype (100% GRATUIT, sans token)
-    - name: Install Grype
+    # 2️⃣ Installation CORRIGÉE de Grype (SANS mv, SANS bug)
+    - name: Install Grype (Safe Install)
       run: |
         curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh
-        sudo mv grype /usr/local/bin/
+        echo "$PWD/bin" >> $GITHUB_PATH
 
-    # 3️⃣ Scan complet de TOUS les fichiers du repo
-    #     + Génération TXT + JSON
-    #     + Le pipeline ne peut JAMAIS échouer (|| true)
+    # 3️⃣ Scan TOTAL du dépôt + génération JSON + TXT
+    #     La commande ne peut JAMAIS casser le pipeline
     - name: Run Grype Scan (Always Success)
       run: |
         mkdir -p reports
 
         echo "🔍 Running Grype scan on the entire repository..."
-        grype dir:. -o json > reports/grype-report.json || true
-        grype dir:. -o table > reports/grype-report.txt || true
 
-    # 4️⃣ Analyse du résultat + Message OBLIGATOIRE dans les logs
-    - name: Display Result Message (Mandatory)
+        grype dir:. -o json > reports/grype-report.json || echo "{}" > reports/grype-report.json
+        grype dir:. -o table > reports/grype-report.txt || echo "Scan failed but pipeline continues" > reports/grype-report.txt
+
+    # 4️⃣ Message OBLIGATOIRE dans les logs
+    - name: Display Mandatory Result Message
       run: |
         if grep -q '"vulnerabilities": \[\]' reports/grype-report.json; then
           echo "✅ No Vulnerability detected"
@@ -46,15 +47,15 @@ jobs:
         cat reports/grype-report.txt
         echo "===================================================="
 
-    # 6️⃣ Upload des rapports comme artefacts téléchargeables
+    # 6️⃣ Upload des rapports téléchargeables
     - name: Upload Scan Reports
       uses: actions/upload-artifact@v4
       with:
         name: grype-vulnerability-reports
         path: reports/
 
-    # 7️⃣ Forcer le statut VERT QUOI QU’IL ARRIVE ✅
-    - name: Force Green Pipeline
+    # 7️⃣ Forçage DUR du statut ✅ VERT ✅ quoi qu’il arrive
+    - name: Force Green Pipeline (Final Lock)
       run: |
-        echo "✅ Pipeline forced to SUCCESS for pedagogy purposes"
+        echo "✅ PIPELINE FORCED TO SUCCESS FOR PEDAGOGY"
         exit 0
