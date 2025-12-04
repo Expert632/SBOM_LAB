@@ -1,6 +1,3 @@
-# Avant (vulnérable)
-FROM golang:1.25.4
-
 # Après (corrigé)
 FROM golang:1.25.5
 
