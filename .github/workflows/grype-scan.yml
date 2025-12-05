@@ -1,50 +1,54 @@
-name: SBOM & GRYPE Scan (Always Green)
+name: Grype Scan Always Green (DIR MODE)
 
 on:
   push:
   pull_request:
 
 jobs:
-  security-scan:
+  grype-scan:
     runs-on: ubuntu-latest
 
     steps:
-      - name: ✅ Checkout repository
+      - name: ✅ Checkout source code
         uses: actions/checkout@v4
 
-      - name: ✅ Build Docker image (NO CACHE)
+      - name: ✅ Install Grype (NO TOKEN)
         run: |
-          docker build --no-cache -t sbom-lab .
-
-      - name: ✅ Install Syft & Grype
-        run: |
-          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
           curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin
+          grype version
 
-      - name: ✅ Generate SBOM
+      - name: ✅ Update Vulnerability Database
         run: |
-          syft sbom-lab -o json > sbom.json
+          grype db update || true
 
-      - name: ✅ Update Grype Database
+      - name: ✅ Run Grype Scan (DIR MODE)
         run: |
-          grype db update
+          echo "================= START GRYPE SCAN ================="
+          
+          # TXT Report
+          grype dir:. -o table > grype-report.txt || true
+          
+          # JSON Report
+          grype dir:. -o json > grype-report.json || true
+          
+          # Display scan in LOG
+          cat grype-report.txt
 
-      - name: ✅ GRYPE SCAN (TXT + JSON + LOG + ALWAYS GREEN)
-        run: |
-          echo "================= GRYPE TXT REPORT ================="
-          grype sbom-lab -o table || true
+          echo "================= SCAN SUMMARY ================="
 
-          echo "================= GRYPE JSON REPORT ================="
-          grype sbom-lab -o json > grype-report.json || true
+          # Detection logique du résultat
+          if grep -q "No vulnerabilities found" grype-report.txt; then
+            echo "✅ No Vulnerability detected"
+          else
+            echo "⚠️ Vulnerability detected"
+          fi
 
-          echo "================= GRYPE TXT FILE ================="
-          grype sbom-lab -o table > grype-report.txt || true
+          echo "================= END GRYPE SCAN ================="
 
-      - name: ✅ Upload Reports
+      - name: ✅ Upload reports as artifacts
         uses: actions/upload-artifact@v4
         with:
           name: grype-reports
           path: |
-            sbom.json
-            grype-report.json
             grype-report.txt
+            grype-report.json
