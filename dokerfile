@@ -1,37 +1,8 @@
-# ================================
-# ✅ IMAGE GO CORRIGÉE (PATCH CVE)
-# ================================
 FROM golang:1.25.5-alpine
-
-# ================================
-# ✅ DÉSACTIVER LES BINAIRES SYSTEMES DANGEREUX
-# ================================
-RUN apk update && apk upgrade && rm -rf /var/cache/apk/*
-
-# ================================
-# ✅ WORKDIR
-# ================================
 WORKDIR /app
-
-# ================================
-# ✅ CODE MINIMAL POUR LE LAB
-# ================================
 COPY main.go .
-
-# ================================
-# ✅ BUILD DU BINAIRE
-# ================================
 RUN go build -o app main.go
-
-# ================================
-# ✅ IMAGE FINALE MINIMALE ET PROPRE
-# ================================
 FROM alpine:3.20
-
 WORKDIR /app
 COPY --from=0 /app/app .
-
-# ================================
-# ✅ LANCEMENT
-# ================================
 CMD ["./app"]
