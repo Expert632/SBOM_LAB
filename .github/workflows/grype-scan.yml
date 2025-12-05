@@ -1,7 +1,9 @@
-name: GRYPE - Always Green Vulnerability Scan (FIXED)
+name: SBOM + Grype Vulnerability Scan (Pedagogical Lab)
 
 on:
   push:
+    branches:
+      - main
   pull_request:
 
 jobs:
@@ -9,53 +11,58 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # 1️⃣ Checkout code
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    # 1️⃣ Récupération du code
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      # 2️⃣ Install Docker (Ubuntu runner a déjà Docker mais juste au cas)
+      - name: Set up Docker
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y docker.io
 
-    # 2️⃣ Installation CORRIGÉE de Grype (SANS mv, SANS bug)
-    - name: Install Grype (Safe Install)
-      run: |
-        curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh
-        echo "$PWD/bin" >> $GITHUB_PATH
+      # 3️⃣ Install Grype
+      - name: Install Grype
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh
+          echo "$PWD/bin" >> $GITHUB_PATH
 
-    # 3️⃣ Scan TOTAL du dépôt + génération JSON + TXT
-    #     La commande ne peut JAMAIS casser le pipeline
-    - name: Run Grype Scan (Always Success)
-      run: |
-        mkdir -p reports
+      # 4️⃣ Build Docker image WITHOUT cache (obligatoire pour corriger la CVE)
+      - name: Build Docker image
+        run: docker build --no-cache -t sbom-lab .
 
-        echo "🔍 Running Grype scan on the entire repository..."
+      # 5️⃣ Scan Docker image with Grype
+      - name: Scan Docker image
+        run: |
+          mkdir -p reports
+          grype sbom-lab -o json > reports/grype-report.json || echo "{}" > reports/grype-report.json
+          grype sbom-lab -o table > reports/grype-report.txt || echo "Scan failed but pipeline continues" > reports/grype-report.txt
 
-        grype dir:. -o json > reports/grype-report.json || echo "{}" > reports/grype-report.json
-        grype dir:. -o table > reports/grype-report.txt || echo "Scan failed but pipeline continues" > reports/grype-report.txt
+      # 6️⃣ Display pedagogical message
+      - name: Display result message
+        run: |
+          if grep -q '"vulnerabilities": \[\]' reports/grype-report.json; then
+            echo "✅ No Vulnerability detected"
+          else
+            echo "⚠️ Vulnerability detected"
+          fi
 
-    # 4️⃣ Message OBLIGATOIRE dans les logs
-    - name: Display Mandatory Result Message
-      run: |
-        if grep -q '"vulnerabilities": \[\]' reports/grype-report.json; then
-          echo "✅ No Vulnerability detected"
-        else
-          echo "⚠️ Vulnerability detected"
-        fi
+      # 7️⃣ Show TXT report in logs
+      - name: Show TXT Report
+        run: |
+          echo "================= GRYPE TXT REPORT ================="
+          cat reports/grype-report.txt
+          echo "===================================================="
 
-    # 5️⃣ Affichage du rapport TXT dans les logs
-    - name: Show TXT Report in Logs
-      run: |
-        echo "================= GRYPE TXT REPORT ================="
-        cat reports/grype-report.txt
-        echo "===================================================="
+      # 8️⃣ Upload reports for download
+      - name: Upload scan reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: grype-reports
+          path: reports/
 
-    # 6️⃣ Upload des rapports téléchargeables
-    - name: Upload Scan Reports
-      uses: actions/upload-artifact@v4
-      with:
-        name: grype-vulnerability-reports
-        path: reports/
-
-    # 7️⃣ Forçage DUR du statut ✅ VERT ✅ quoi qu’il arrive
-    - name: Force Green Pipeline (Final Lock)
-      run: |
-        echo "✅ PIPELINE FORCED TO SUCCESS FOR PEDAGOGY"
-        exit 0
+      # 9️⃣ Always green for pedagogy
+      - name: Force pipeline green
+        run: |
+          echo "✅ Pipeline forced to success for lab purposes"
+          exit 0
