@@ -11,15 +11,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout code
+      # 1️⃣ Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2️⃣ Install Docker (Ubuntu runner a déjà Docker mais juste au cas)
-      - name: Set up Docker
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y docker.io
+      # 2️⃣ Check Docker version (Docker déjà installé sur le runner)
+      - name: Check Docker version
+        run: docker --version
 
       # 3️⃣ Install Grype
       - name: Install Grype
@@ -27,7 +25,7 @@ jobs:
           curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh
           echo "$PWD/bin" >> $GITHUB_PATH
 
-      # 4️⃣ Build Docker image WITHOUT cache (obligatoire pour corriger la CVE)
+      # 4️⃣ Build Docker image WITHOUT cache (pour corriger la CVE)
       - name: Build Docker image
         run: docker build --no-cache -t sbom-lab .
 
@@ -61,7 +59,7 @@ jobs:
           name: grype-reports
           path: reports/
 
-      # 9️⃣ Always green for pedagogy
+      # 9️⃣ Force pipeline green (pédagogique)
       - name: Force pipeline green
         run: |
           echo "✅ Pipeline forced to success for lab purposes"
