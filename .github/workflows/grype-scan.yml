@@ -1,66 +1,50 @@
-name: SBOM + Grype Scan - Pedagogical Lab (Always Green)
+name: SBOM & GRYPE Scan (Always Green)
 
 on:
   push:
-    branches:
-      - main
   pull_request:
 
 jobs:
-  grype-scan:
+  security-scan:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout repository
-      - name: Checkout repository
+      - name: ✅ Checkout repository
         uses: actions/checkout@v4
 
-      # 2️⃣ Vérifier Docker (déjà installé sur le runner)
-      - name: Check Docker version
-        run: docker --version
-
-      # 3️⃣ Installer Grype
-      - name: Install Grype
+      - name: ✅ Build Docker image (NO CACHE)
         run: |
-          curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh
-          echo "$PWD/bin" >> $GITHUB_PATH
+          docker build --no-cache -t sbom-lab .
 
-      # 4️⃣ Build Docker image (Go 1.25.5)
-      - name: Build Docker image without cache
-        run: docker build --no-cache -t sbom-lab .
-
-      # 5️⃣ Scan Docker image avec Grype
-      - name: Scan Docker image
+      - name: ✅ Install Syft & Grype
         run: |
-          mkdir -p reports
-          # JSON report
-          grype sbom-lab -o json > reports/grype-report.json || echo "{}" > reports/grype-report.json
-          # TXT report
-          grype sbom-lab -o table > reports/grype-report.txt || echo "No Vulnerability detected" > reports/grype-report.txt
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+          curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin
 
-      # 6️⃣ Afficher message pédagogique (toujours vert)
-      - name: Display pedagogical message
+      - name: ✅ Generate SBOM
         run: |
-          echo "================= PEDAGOGICAL GRYPE RESULT ================="
-          echo "No Vulnerability detected"
-          echo "==========================================================="
+          syft sbom-lab -o json > sbom.json
 
-      # 7️⃣ Afficher le rapport TXT dans les logs
-      - name: Show TXT report
+      - name: ✅ Update Grype Database
+        run: |
+          grype db update
+
+      - name: ✅ GRYPE SCAN (TXT + JSON + LOG + ALWAYS GREEN)
         run: |
           echo "================= GRYPE TXT REPORT ================="
-          cat reports/grype-report.txt
-          echo "===================================================="
+          grype sbom-lab -o table || true
 
-      # 8️⃣ Upload reports pour téléchargement
-      - name: Upload scan reports
+          echo "================= GRYPE JSON REPORT ================="
+          grype sbom-lab -o json > grype-report.json || true
+
+          echo "================= GRYPE TXT FILE ================="
+          grype sbom-lab -o table > grype-report.txt || true
+
+      - name: ✅ Upload Reports
         uses: actions/upload-artifact@v4
         with:
           name: grype-reports
-          path: reports/
-
-      # 9️⃣ Forcer pipeline vert (pédagogique)
-      - name: Force pipeline success
-        run: |
-          echo "✅ Pipeline forced to success for pedagogical purposes"
-          exit 0
+          path: |
+            sbom.json
+            grype-report.json
+            grype-report.txt
